@@ -14,7 +14,10 @@ read_it(Inputs) :-
 build_input(Line, Input) :-
     split_string(Line, '\n ', '', Input).
 
-% -----------------
+%% ----------
+%% Predicates
+%% ----------
+
 % N equals the number of chars that appear in at least one of the strings in Group
 distinct_chars(Group, N) :-
     atomic_list_concat(Group, ConcatedStrings),
@@ -37,6 +40,10 @@ shared_chars(Group, N) :-
     % Longer version: findall(char(C), char_in_every_string(C, Group), SharedChars), length(SharedChars, N).
     aggregate_all(count, (char(C), char_in_every_string(C, Group)), N).
 
+%% ------
+%% Levels
+%% ------
+
 level(1, Groups) :-
     maplist(distinct_chars, Groups, DistinctCharsCounts),
     sum_list(DistinctCharsCounts, Res),
@@ -46,5 +53,9 @@ level(2, Groups) :-
     maplist(shared_chars, Groups, SharedCharCounts),
     sum_list(SharedCharCounts, Res),
     write("Level 2: "), writeln(Res).
+
+%% ----------------
+%% Auto-run on load
+%% ----------------
 
 :- read_it(Groups), level(1, Groups), level(2, Groups).
