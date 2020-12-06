@@ -1,10 +1,17 @@
-% not needed due to auto-import
-% use_module(library(readutil)).
+%% --------
+%% Data I/O
+%% --------
 
+% reads in a list of numbers from file
 read_numbers(Numbers) :-
-    read_file_to_string('01_input.txt', String, []),
-    split_string(String, "\n", "", Strings),
+    working_directory(_, "C:/repos/git/advent-of-code-2020"),
+    read_file_to_string("data/01_input.txt", FileText, []),
+    split_string(FileText, "\n", "", Strings),
     maplist(atom_number, Strings, Numbers).
+
+%% ------
+%% Levels
+%% ------
 
 level_1(Mul) :-
     read_numbers(Numbers),
@@ -24,5 +31,10 @@ level_2(Mul) :-
     2020 is X + Y + Z,
     Mul is X * Y * Z.
 
+%% ----------------
+%% Auto-run on load
+%% ----------------
 
-
+:- 
+    level_1(Res1), write('Level 1: '), writeln(Res1), 
+    level_2(Res2), write('Level 2: '), writeln(Res2).

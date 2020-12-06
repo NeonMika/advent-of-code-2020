@@ -5,11 +5,11 @@
 % read from file
 % returns a list of lists of strings, e.g., [[abc,abe],[a,b,c]]
 % we call each list of strings a *Group*
-read_it(Inputs) :-
-    working_directory(_, "C:/repos/git/advent-of-code-2020/prolog"),
-    read_file_to_string("06_input.txt", FileText, []),
+read_groups(Groups) :-
+    working_directory(_, "C:/repos/git/advent-of-code-2020"),
+    read_file_to_string("data/06_input.txt", FileText, []),
     atomic_list_concat(Blocks,'\n\n', FileText), % this can split multiline -> split into blocks
-    maplist(build_input, Blocks, Inputs), % split each block into list of strings
+    maplist(build_input, Blocks, Groups), % split each block into list of strings
     !.
 build_input(Line, Input) :-
     split_string(Line, '\n ', '', Input).
@@ -44,18 +44,19 @@ shared_chars(Group, N) :-
 %% Levels
 %% ------
 
-level(1, Groups) :-
+level(1, Groups, Res) :-
     maplist(distinct_chars, Groups, DistinctCharsCounts),
-    sum_list(DistinctCharsCounts, Res),
-    write("Level 1: "), writeln(Res).
+    sum_list(DistinctCharsCounts, Res).
 
-level(2, Groups) :-
+level(2, Groups, Res) :-
     maplist(shared_chars, Groups, SharedCharCounts),
-    sum_list(SharedCharCounts, Res),
-    write("Level 2: "), writeln(Res).
+    sum_list(SharedCharCounts, Res).
 
 %% ----------------
 %% Auto-run on load
 %% ----------------
 
-:- read_it(Groups), level(1, Groups), level(2, Groups).
+:-
+    read_groups(Groups),
+    level(1, Groups, Res1), write('Level 1: '), writeln(Res1), 
+    level(2, Groups, Res2), write('Level 2: '), writeln(Res2).

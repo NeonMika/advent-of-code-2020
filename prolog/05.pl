@@ -1,12 +1,14 @@
-use_module(library(pcre)).
-%split_string(String, "\n", "", Inputs), % this cannot split multiline, 2nd parameter is "string of sep chars", not "seperator string"
-%atomic_list_concat(Blocks,'\n\n',String), % this can split multiline
+%% --------
+%% Data I/O
+%% --------
 
-read_it(Inputs) :-
-    working_directory(_, 'C:/repos/git/advent-of-code-2020/prolog'),
-    read_file_to_string('05_input.txt', FileText, []),
+% reads a list of seat/5 structures
+% seat(RowList, ColList, RowNr, ColNr, ID)
+read_seats(Seats) :-
+    working_directory(_, "C:/repos/git/advent-of-code-2020"),
+    read_file_to_string("data/05_input.txt", FileText, []),
     split_string(FileText, '\n', '', Lines),
-    maplist(build_input, Lines, Inputs),
+    maplist(build_input, Lines, Seats),
     !.
 
 build_input(Line, seat(R_B, C_B, R, C, ID)) :- 
@@ -17,6 +19,18 @@ build_input(Line, seat(R_B, C_B, R, C, ID)) :-
     col_pos(C_B, C),
     seat_id(R, C, ID).
 
+%% -----
+%% Facts
+%% -----
+
+% extracts ID from a seat
+extract_id(seat(_,_,_,_,ID), ID).
+
+%% ----------
+%% Predicates
+%% ----------
+
+% succeeds when a given binary list (with low symbol Sym) in the given range resolves to N
 binary_string_to_pos(X-X, _, _, X) :- 
     % Final step, Low = High = Result
     !.
@@ -30,20 +44,26 @@ binary_string_to_pos(Low-High, [_ | T], Sym, Result) :-
     NewLow is truncate((Low + High + 1) / 2),
     binary_string_to_pos(NewLow-High, T, Sym, Result).
 
+% succeeds if given row binary row R_B resolves to row nr R
 row_pos(R_B, R) :- binary_string_to_pos(0-127, R_B, 'F', R).
 
+% succeeds if given col binary row C_B resolves to col nr C
 col_pos(C_B, C) :- binary_string_to_pos(0-7, C_B, 'L', C).
 
+% succeeds if row R and col C resolve to id ID
 seat_id(R, C, ID) :-  ID is R * 8 + C.
 
-extract_id(seat(_,_,_,_,ID), ID).
-
+% succeeds for the first pair H1, H2 in the given list that is not 1 apart
 first_unconsecutive_elements([H1|T], H1, H2) :-
     T = [H2|_],
     Inc is H1 + 1,
     H2 \= Inc,
     !.
 first_unconsecutive_elements([_|T], X, Y) :- first_unconsecutive_elements(T, X, Y).
+
+%% ------
+%% Levels
+%% ------
 
 level(1, Seats, Result) :- aggregate_all(max(ID), member(seat(_,_,_,_,ID), Seats), Result).
 level(2, Seats, Result) :-
@@ -52,9 +72,11 @@ level(2, Seats, Result) :-
     first_unconsecutive_elements(SortedIds, X, _),
     Result is X + 1.
 
-:- 
-    read_it(Seats),
-    level(1, Seats, Res1), 
-    write(Res1), write('\n'),
-    level(2, Seats, Res2),
-    write(Res2), write('\n').
+%% ----------------
+%% Auto-run on load
+%% ----------------
+
+:-
+    read_seats(Seats),
+    level(1, Seats, Res1), write('Level 1: '), writeln(Res1), 
+    level(2, Seats, Res2), write('Level 2: '), writeln(Res2).
