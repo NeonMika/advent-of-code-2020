@@ -3,7 +3,7 @@
 %% --------
 
 % read from file
-% returns a list of node structures
+% creates node(X) and points(X, Y) facts and stores the in the database.
 read_nodes() :-
     working_directory(_, "C:/repos/git/advent-of-code-2020"),
     read_file_to_string("data/07_input.txt", FileText, []),
