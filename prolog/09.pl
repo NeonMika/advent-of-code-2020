@@ -27,18 +27,21 @@ read_numbers(Numbers) :-
 %   - the sum of N1 and N2 equals the number X at position Pos.
 valid_position(Numbers, Preamble_Len, Pos) :-
     length(Numbers, ListLen),
-    between(Preamble_Len, ListLen, Pos),
-    nth0(Pos, Numbers, X),
+    member_between0(X, Pos, Numbers, Preamble_Len, ListLen),
     Preamble_End is Pos - 1,                           % for Pos = 25, PreambleLen = 25: 24
     Preamble_Start is Preamble_End - Preamble_Len + 1, % for Pos = 25, PreambleLen = 25: 0
-    between(Preamble_Start, Preamble_End, N1_Pos),
-    between(Preamble_Start, Preamble_End, N2_Pos),
+    member_between0(N1, N1_Pos, Numbers, Preamble_Start, Preamble_End),
+    member_between0(N2, N2_Pos, Numbers, Preamble_Start, Preamble_End),
     N2_Pos > N1_Pos,
-    nth0(N1_Pos, Numbers, N1),
-    nth0(N2_Pos, Numbers, N2),
     X is N1 + N2.
 
 invalid_position(Numbers, Preamble_Len, Pos) :- not(valid_position(Numbers, Preamble_Len, Pos)).
+
+% utility predicate to access list members in a certain index range
+% index is 0-based
+member_between0(Member, Idx, List, Start, End) :-
+    between(Start, End, Idx),
+    nth0(Idx, List, Member).
 
 %% -----
 %% Level
@@ -54,7 +57,9 @@ level(1, Numbers, Result) :-
 % the sum of the numbers in Group equals Goal.
 % then, calculate the sum of the smallest and largest number within Group.
 level(2, Numbers, Goal, Result) :-
-    append([_, Group, _, [Goal], _], Numbers),
+    append([_, Group, _], Numbers),
+    length(Group, GroupLength),
+    GroupLength > 1,
     sum_list(Group, Goal),
     min_member(Min, Group),
     max_member(Max, Group),
