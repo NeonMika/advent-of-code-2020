@@ -21,7 +21,7 @@ read_input(Data, Test, Level) :-
     string_codes(FileText, FileTextCodes),
     phrase(input(Data), FileTextCodes), !.
 
-% left rotation
+% right rotation definitions
 rot(n, e).
 rot(e, s).
 rot(s, w).
