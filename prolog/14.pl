@@ -3,6 +3,10 @@
 :- use_module(library(dcg/basics)).
 :- use_module(library(dcg/high_order)).
 
+:- use_module(library(yall)).
+
+:- set_prolog_flag(history, 50).
+
 level(14).
 
 %% -------
@@ -49,11 +53,11 @@ input([mem(Addr, Val)|T]) -->
     blanks,
     input(T).
 
-read_input(Data, Test, Level) :-
+read_input(Data, Test, Level, Stars) :-
     working_directory(_, "C:/repos/git/advent-of-code-2020"),
     string_concat("data/", Level, P1),
     string_concat(P1, "_input", P2),
-    (Test -> string_concat(P2, "_test", P3); string_concat(P2, "", P3)),
+    (Test -> string_concat(P2, "_test", PX), string_concat(PX, Stars, P3); string_concat(P2, "", P3)),
     string_concat(P3, ".txt", Path),
     read_file_to_string(Path, FileText, []),
     string_codes(FileText, FileTextCodes),
@@ -64,23 +68,42 @@ read_input(Data, Test, Level) :-
 %% Actual predicates
 %% -----------------
 
-mask(Val, Mask, Masked) :-
-    maplist([MaskEle, ValEle, MaskedEle]>>(MaskEle \= x -> MaskedEle = MaskEle; MaskedEle = ValEle), Mask, Val, Masked).    
+mask_value(Val, Mask, Masked) :-
+    maplist([MaskEle, ValEle, MaskedEle]>>(MaskEle \= x -> MaskedEle = MaskEle; MaskedEle = ValEle), Mask, Val, Masked).
 
-process(machine(Memory, _), mask(Mask), machine(Memory, Mask)).
-process(machine(Memory, Mask), mem(Addr, Val), machine(NewMemory, Mask)) :-
-    length(BinaryVal, 36),
+mask_addr(Addr, Mask, Masked) :-
+    maplist([MaskEle, AddrEle, MaskedEle]>>(MaskEle = 0 -> MaskedEle = AddrEle; MaskedEle = MaskEle), Mask, Addr, Masked).
+
+process(_, machine(Memory, _), mask(Mask), machine(Memory, Mask)).
+process(1, machine(Memory, Mask), mem(Addr, Val), machine(NewMemory, Mask)) :-
     binary_decimal(BinaryVal, Val),
-    mask(BinaryVal, Mask, NewMemoryEntry),
-    nth0(Addr, Memory, _, Rest),
-    nth0(Addr, NewMemory, NewMemoryEntry, Rest).
+    mask_value(BinaryVal, Mask, NewBinaryMemoryEntry),
+    NewEntry = Addr-NewBinaryMemoryEntry,
+    (member(Addr-_, Memory) -> select(Addr-_, Memory, NewEntry, NewMemory); select(NewEntry, NewMemory, Memory)).
+process(2, machine(Memory, Mask), mem(Addr, Val), machine(NewMemory, Mask)) :-
+    binary_decimal(BinaryVal, Val),
+    binary_decimal(BinaryAddr, Addr),
+    mask_addr(BinaryAddr, Mask, AddrX),
+    findall(OverwrittenAddr, (addrx_addr(AddrX, OverwrittenBinaryAddr), binary_decimal(OverwrittenBinaryAddr, OverwrittenAddr)), OverwrittenAddrs),
+    maplist({BinaryVal}/[A, Entry]>>(Entry=A-BinaryVal), OverwrittenAddrs, NewMemoryParts),
+    include({OverwrittenAddrs}/[A-_]>>(\+member(A, OverwrittenAddrs)), Memory, SurvivingMemoryParts),
+    append(NewMemoryParts, SurvivingMemoryParts, NewMemory).
+    
+addrx_addr([], []).
+addrx_addr([0|AddrXT], [0|AddrT]) :- addrx_addr(AddrXT, AddrT).
+addrx_addr([1|AddrXT], [1|AddrT]) :- addrx_addr(AddrXT, AddrT).
+addrx_addr([x|AddrXT], [AddrH|AddrT]) :-
+    (AddrH is 0; AddrH is 1),
+    addrx_addr(AddrXT, AddrT).
 
-process_all(M, [], M).
-process_all(Machine, [H|T], NewMachine) :-
-    process(Machine, H, IntermediateMachine),
-    process_all(IntermediateMachine, T, NewMachine).
+process_all(__Level, M, [], M).
+process_all(Level, Machine, [H|T], NewMachine) :-
+    format("process ~w~n", H),
+    process(Level, Machine, H, IntermediateMachine),
+    process_all(Level, IntermediateMachine, T, NewMachine).
 
 binary_decimal(BinaryList, Decimal) :-
+    length(BinaryList, 36),
     reverse(BinaryList, ReversedBinaryList),
     foldl(aggregate_binary, ReversedBinaryList, 0-0, _-Decimal).
 
@@ -95,19 +118,14 @@ aggregate_binary(B, I-A, IN-AN) :-
 %% -----
 
 level(1, Data, Result) :-
-    aggregate_all(max(Addr), member(mem(Addr, _), Data), MaxAddr),
-    Length #= MaxAddr + 1,
-    length(Memory, Length),
-    maplist(=([]), Memory),
-    process_all(machine(Memory, []), Data, machine(NewMemory, _)),
-    aggregate_all(sum(Val), (member(Cell, NewMemory), binary_decimal(Cell, Val)), Result),
+    process_all(1, machine([], _), Data, machine(FinalMemory, _)),
+    aggregate_all(sum(Val), (member(_-BinaryVal, FinalMemory), binary_decimal(BinaryVal, Val)), Result),
     !.
 
 level(2, Data, Result) :-
-    Data = data(_, Lines),    
-    findall(-Index-Line, (nth0(Index, Lines, Line), Line \= x), Pairs),
-    crt(Pairs, T),
-    Result = T, !.
+    process_all(2, machine([], _), Data, machine(FinalMemory, _)),
+    aggregate_all(sum(Val), (member(_-BinaryVal, FinalMemory), binary_decimal(BinaryVal, Val)), Result),
+    !.
 
 %% ----------------
 %% Auto-run on load
@@ -116,24 +134,25 @@ level(2, Data, Result) :-
 run(test, Stars) :-
     level(Level),
     writeln("Testdata:"),
-    read_input(TestData, true, Level),
+    read_input(TestData, true, Level, Stars),
     statistics(runtime,[TestStart|_]),
     level(Stars, TestData, TestResult), 
     statistics(runtime,[TestStop|_]),
     TestRuntime is TestStop - TestStart,
-    format("> Star 1:~n>> Result: ~w~n>> (ran for ~wms)~n", [TestResult, TestRuntime]).
+    format("> Star ~w:~n>> Result: ~w~n>> (ran for ~wms)~n", [Stars, TestResult, TestRuntime]).
 
 run(real, Stars) :-
     level(Level),
     writeln("Real data:"),
-    read_input(Data, false, Level),
+    read_input(Data, false, Level, Stars),
     statistics(runtime,[Start|_]),
     level(Stars, Data, Result), 
     statistics(runtime,[Stop|_]),
     Runtime is Stop - Start,
-    format("> Star 1:~n>> Result: ~w~n>> (ran for ~wms)~n", [Result, Runtime]).
+    format("> Star ~w:~n>> Result: ~w~n>> (ran for ~wms)~n", [Stars, Result, Runtime]).
 
-:-  run(test, 1),
-    run(real, 1).
-    % run(test, 2),
-    % run(real, 2).
+:-  set_prolog_flag(stack_limit, 8_000_000_000),
+    profile(run(test, 1)),
+    profile(run(real, 1)),
+    profile(run(test, 2)),
+    profile(run(real, 2)).
