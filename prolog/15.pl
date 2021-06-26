@@ -52,38 +52,50 @@ read_input(Data, Test, Level, Stars) :-
 %% -----------------
 %% Actual predicates
 %% -----------------
-distance(List, To, X, Distance) :-
-    nth0(To, List, X),    
-    (aggregate_all(max(I), (I #< To, nth0(I, List, X)), MaxI) -> Distance #= To - MaxI; Distance = 0).    
+search(Assoc, X, F, T, X) :- F > T, !.
+search(Assoc, LastNumber, From, To, LastSpokenNumber) :-
+    (0 is mod(From, 10_000) -> writeln(From); true),
+    next(Assoc, LastNumber, From, WrittenNumber, NewAssoc),
+    NewFrom #= From + 1,
+    search(NewAssoc, WrittenNumber, NewFrom, To, LastSpokenNumber).
 
-fit(List, I) :-
-    Prev #= I - 1,
-    nth0(Prev, List, X),
-    distance(List, Prev, X, Distance),
-    (Distance #> 0 -> nth0(I, List, Distance); nth0(I, List, 0)).
+next(Assoc, LastNumber, Pos, WrittenNumber, NewAssoc) :- 
+    get_assoc(LastNumber, Assoc, Positions),
+    Positions = Last//Previous,
+    Previous #\= -1,
+    WrittenNumber #= Last - Previous,
+    (get_assoc(WrittenNumber, Assoc, LastWrittenNumber//_) -> put_assoc(WrittenNumber, Assoc, Pos//LastWrittenNumber, NewAssoc); put_assoc(WrittenNumber, Assoc, Pos//(-1), NewAssoc)).
 
-fit_all(List, From) :-
-    length(List, ListLen),
-    To #= ListLen - 1,
-    fit(List, From),
-    (From #< To -> (NewFrom #= From + 1, fit_all(List, NewFrom)); true).
+next(Assoc, LastNumber, Pos, WrittenNumber, NewAssoc) :- 
+    get_assoc(LastNumber, Assoc, Positions),
+    Positions = Last//Previous,
+    Previous #= -1,
+    WrittenNumber #= 0,
+    get_assoc(WrittenNumber, Assoc, LastZero//_),
+    put_assoc(WrittenNumber, Assoc, Pos//LastZero, NewAssoc).
 
-rules(1, List, Starting) :-    
-    fit_all(List, Starting).
-
+numbers_assoc(List, Assoc) :-
+    findall((X)-(I)//(-1), nth1(I, List, X), Pairs),    
+    list_to_assoc(Pairs, Assoc).
 %% -----
 %% Level
 %% -----
 
 level(1, Data, Result) :-
     length(Data, NStartingNumbers),
-    append(Data, T, FullList),
-    %FullList = [Data|T],
-    length(FullList, 2020),
-    rules(1, FullList, NStartingNumbers),
-    nth1(2020, FullList, Result).
+    last(Data, LastNumber),
+    numbers_assoc(Data, Assoc),
+    StartRound #= NStartingNumbers + 1,
+    search(Assoc, LastNumber, StartRound, 2020, LastSpokenNumber),
+    Result = LastSpokenNumber.
 
-level(2, Data, Result) :- !.
+level(2, Data, Result) :-    
+    length(Data, NStartingNumbers),
+    last(Data, LastNumber),
+    numbers_assoc(Data, Assoc),
+    StartRound #= NStartingNumbers + 1,
+    search(Assoc, LastNumber, StartRound, 30_000_000, LastSpokenNumber),
+    Result = LastSpokenNumber.
 
 %% ----------------
 %% Auto-run on load
@@ -109,8 +121,12 @@ run(real, Stars) :-
     Runtime is Stop - Start,
     format("> Star ~w:~n>> Result: ~w~n>> (ran for ~wms)~n", [Stars, Result, Runtime]).
 
-:-  %set_prolog_flag(stack_limit, 8_000_000_000),
-    profile(run(test, 1)),
-    profile(run(real, 1)).
+:-  set_prolog_flag(stack_limit, 4_000_000_000),
+    %profile(run(test, 1)),
+    %profile(run(real, 1)),
     %profile(run(test, 2)),
-    %profile(run(real, 2)).
+    %profile(run(real, 2)),
+    run(test, 1),
+    run(real, 1),
+    %run(test, 2),
+    run(real, 2).
